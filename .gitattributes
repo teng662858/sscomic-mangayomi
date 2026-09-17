@@ -1,0 +1,3 @@
+# 源码文件保持 LF：App 会直接下载并执行这个 .js，避免换行符在不同机器上反复变动。
+* text=auto eol=lf
+*.png binary

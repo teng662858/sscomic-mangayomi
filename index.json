@@ -1,0 +1,24 @@
+[
+  {
+    "name": "涩涩漫画",
+    "id": 615820473,
+    "baseUrl": "https://sscomic.top",
+    "lang": "zh",
+    "typeSource": "single",
+    "iconUrl": "https://sscomic.top/sslogo.png",
+    "dateFormat": "",
+    "dateFormatLocale": "",
+    "isNsfw": true,
+    "hasCloudflare": true,
+    "sourceCodeUrl": "https://teng662858.github.io/sscomic-mangayomi/javascript/manga/src/zh/sscomic.js",
+    "apiUrl": "",
+    "version": "0.1.0",
+    "isManga": true,
+    "itemType": 0,
+    "isFullData": false,
+    "appMinVerReq": "0.5.0",
+    "additionalParams": "",
+    "sourceCodeLanguage": 1,
+    "notes": "站点地址失效时可自行改 baseUrl；作者字段该站为空属正常。"
+  }
+]
