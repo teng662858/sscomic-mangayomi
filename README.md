@@ -99,6 +99,10 @@ App 是靠 `version` 判断有没有新版本的，**两处都要改**：
 - **作者字段为空是正常的**：该站详情页的作者位全站为空（页面用 CSS fallback 显示站名），所以源里不猜、留空。
 - **内容分级**：`isNsfw: true` 已设置。
 - **索引字段不能增删**：`tools/configure.mjs` 会拿官方仓库条目的字段集合做校验，多一个少一个都会报错并中止（App 是按固定字段解析的）。
+- **`MChapter` 的字段全是 `String?`，别传数字**（真机上踩过一次）：`dateUpload` 必须是**字符串形式的毫秒时间戳**，例如 `"1761494400000"`。传数字会让 App 在 `MChapter.fromJson` 抛 `type 'int' is not a subtype of type 'String?'`，表现是详情页 0 章 + 报错。
+  官方模型定义：`lib/eval/model/m_chapter.dart`；App 消费方式：`lib/utils/fetch_interval.dart` 里 `int.tryParse(c.dateUpload ?? '')`。
+  离线测试台里加了「章节对象里没有数字字段」这条回归断言，改代码后跑一次就能拦住这类问题。
+- **`status` 取值**：`0=ongoing 1=completed 2=onHiatus 3=canceled 4=publishingFinished`，其余（含不传）都算 `unknown`。该站没有连载状态，所以填 `5`（→ unknown）。
 
 ## 五、本地验证
 
