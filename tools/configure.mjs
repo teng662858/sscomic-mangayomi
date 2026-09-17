@@ -12,6 +12,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
+import vm from "node:vm";
 import { fileURLToPath } from "node:url";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -51,13 +52,23 @@ if (!base) {
 }
 
 const indexUrl = `${base}/index.json`;
-const sourceUrl = `${base}/${SOURCE_REL}`;
 
-// 源码文件在仓库里的位置必须是 index.json 里 sourceCodeUrl 指向的相对路径。
-const sourceFile = path.join(REPO_DIR, SOURCE_REL);
-if (!fs.existsSync(sourceFile)) {
-  console.error(`找不到源码文件：${sourceFile}`);
-  process.exit(1);
+// 每个源对应的源码路径：扫 javascript/manga/src/zh/*.js，按里面的 name 与索引条目对上。
+const SRC_DIR = path.join(REPO_DIR, "javascript/manga/src/zh");
+const sourceFiles = fs.existsSync(SRC_DIR)
+  ? fs.readdirSync(SRC_DIR).filter((f) => f.endsWith(".js"))
+  : [];
+const byName = new Map();
+for (const file of sourceFiles) {
+  const code = fs.readFileSync(path.join(SRC_DIR, file), "utf8");
+  const m = /const mangayomiSources\s*=\s*(\[[\s\S]*?\]);/.exec(code);
+  if (!m) continue;
+  try {
+    const meta = vm.runInNewContext(`(${m[1]})`)[0];
+    if (meta && meta.name) byName.set(meta.name, file);
+  } catch {
+    /* 忽略解析不了的 */
+  }
 }
 
 const index = JSON.parse(fs.readFileSync(INDEX_PATH, "utf8"));
@@ -65,7 +76,15 @@ if (!Array.isArray(index) || index.length === 0) {
   console.error("index.json 应该是一个非空数组");
   process.exit(1);
 }
-index[0].sourceCodeUrl = sourceUrl;
+
+for (const entry of index) {
+  const file = byName.get(entry.name);
+  if (!file) {
+    console.error(`index.json 里的「${entry.name}」在 javascript/manga/src/zh/ 下找不到同名源码文件`);
+    process.exit(1);
+  }
+  entry.sourceCodeUrl = `${base}/javascript/manga/src/zh/${file}`;
+}
 
 // 字段集合要跟官方仓库保持一致，多一个少一个都可能让 App 解析失败。
 const official = [
@@ -73,16 +92,18 @@ const official = [
   "isNsfw", "hasCloudflare", "sourceCodeUrl", "apiUrl", "version", "isManga", "itemType",
   "isFullData", "appMinVerReq", "additionalParams", "sourceCodeLanguage", "notes",
 ];
-const mine = Object.keys(index[0]);
-const missing = official.filter((k) => !mine.includes(k));
-const extra = mine.filter((k) => !official.includes(k));
-if (missing.length || extra.length) {
-  console.error(`字段与官方不一致：缺少 [${missing.join(", ")}]，多出 [${extra.join(", ")}]`);
-  process.exit(1);
-}
-if (index[0].sourceCodeLanguage !== 1) {
-  console.error("JavaScript 源的 sourceCodeLanguage 必须是 1（0 是 Dart）");
-  process.exit(1);
+for (const entry of index) {
+  const mine = Object.keys(entry);
+  const missing = official.filter((k) => !mine.includes(k));
+  const extra = mine.filter((k) => !official.includes(k));
+  if (missing.length || extra.length) {
+    console.error(`「${entry.name}」字段与官方不一致：缺少 [${missing.join(", ")}]，多出 [${extra.join(", ")}]`);
+    process.exit(1);
+  }
+  if (entry.sourceCodeLanguage !== 1) {
+    console.error(`「${entry.name}」的 sourceCodeLanguage 必须是 1（0 是 Dart）`);
+    process.exit(1);
+  }
 }
 
 if (!args.dryRun) {
@@ -98,7 +119,8 @@ const viaRedirector = `https://intradeus.github.io/http-protocol-redirector?r=${
 const liveContainer = `livecontainer://open-url?url=${Buffer.from(deepLink, "utf8").toString("base64")}`;
 
 console.log(`托管方式：${args.host}`);
-console.log(`源码地址：${sourceUrl}`);
+console.log("源码地址：");
+for (const entry of index) console.log(`   ${entry.name}  →  ${entry.sourceCodeUrl}`);
 console.log("");
 console.log("① App 内手动添加（More → Settings → Browse，粘贴这个）：");
 console.log(`   ${indexUrl}`);

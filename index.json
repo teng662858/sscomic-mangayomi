@@ -10,7 +10,7 @@
     "dateFormatLocale": "",
     "isNsfw": true,
     "hasCloudflare": true,
-    "sourceCodeUrl": "https://teng662858.github.io/sscomic-mangayomi/javascript/manga/src/zh/sscomic.js",
+    "sourceCodeUrl": "https://raw.githubusercontent.com/teng662858/sscomic-mangayomi/refs/heads/main/javascript/manga/src/zh/sscomic.js",
     "apiUrl": "",
     "version": "0.1.1",
     "isManga": true,
@@ -20,5 +20,27 @@
     "additionalParams": "",
     "sourceCodeLanguage": 1,
     "notes": "站点地址失效时可自行改 baseUrl；作者字段该站为空属正常。"
+  },
+  {
+    "name": "K漫画",
+    "id": 702481369,
+    "baseUrl": "https://kmh001.net",
+    "lang": "zh",
+    "typeSource": "single",
+    "iconUrl": "https://kmh001.net/android-icon-192x192.png",
+    "dateFormat": "",
+    "dateFormatLocale": "",
+    "isNsfw": true,
+    "hasCloudflare": false,
+    "sourceCodeUrl": "https://raw.githubusercontent.com/teng662858/sscomic-mangayomi/refs/heads/main/javascript/manga/src/zh/kmh001.js",
+    "apiUrl": "",
+    "version": "0.1.0",
+    "isManga": true,
+    "itemType": 0,
+    "isFullData": false,
+    "appMinVerReq": "0.5.0",
+    "additionalParams": "",
+    "sourceCodeLanguage": 1,
+    "notes": "本站常年被墙，站点地址可在设置里改成 kmh002.com ~ kmh006.com 任一镜像；只索引中文标题，英文词搜不到；列表页没有封面属正常。"
   }
 ]
