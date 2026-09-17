@@ -23,7 +23,7 @@ const mangayomiSources = [
     "typeSource": "single",
     "itemType": 0,
     "isNsfw": true,
-    "version": "0.1.0",
+    "version": "0.1.1",
     "dateFormat": "",
     "dateFormatLocale": "",
     "pkgPath": "manga/src/zh/sscomic.js",
@@ -237,7 +237,9 @@ class DefaultExtension extends MProvider {
 
       var dateText = this.text(el.selectFirst("time"));
       var timestamp = Date.parse(dateText);
-      if (!isNaN(timestamp)) episode.dateUpload = timestamp;
+      // MChapter.dateUpload 是 String?（不是数字）：必须是「字符串形式的毫秒时间戳」，
+      // 传数字会让 App 在 MChapter.fromJson 里抛 type 'int' is not a subtype of type 'String?'。
+      if (!isNaN(timestamp)) episode.dateUpload = String(timestamp);
 
       episodes.push(episode);
     }
