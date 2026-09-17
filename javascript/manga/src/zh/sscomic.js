@@ -23,7 +23,7 @@ const mangayomiSources = [
     "typeSource": "single",
     "itemType": 0,
     "isNsfw": true,
-    "version": "0.1.1",
+    "version": "0.1.2",
     "dateFormat": "",
     "dateFormatLocale": "",
     "pkgPath": "manga/src/zh/sscomic.js",
@@ -53,10 +53,62 @@ var ORDER_OPTIONS = [
   { name: "最新", value: "addtime" },
 ];
 
+// 站点域名（内容相同）。被拦住时按顺序自动往后换。
+var MIRRORS = [
+  "https://sscomic.top",
+  "https://tw.sscomic.top",
+];
+
+// 源设置（Mangayomi 的「源设置」页）里可以手动指定域名。
+var SITE_PREF = "site_base_url";
+
+// 下拉框显示用的名字：去掉协议，第一项标注「默认」。
+var MIRROR_ENTRIES = MIRRORS.map(function (u, i) {
+  return u.replace(/^https?:\/\//, "") + (i === 0 ? "（默认）" : "");
+});
+
+var mirrorIndex = 0;
+
 class DefaultExtension extends MProvider {
+  /** 源设置里填的地址排最前，其余按内置顺序跟在后面。 */
+  get mirrors() {
+    var configured = String(this.readSitePref() || this.source.baseUrl || "")
+      .trim()
+      .replace(/\/+$/, "");
+    var list = MIRRORS.slice();
+    if (configured && list.indexOf(configured) === -1) list.unshift(configured);
+    return list;
+  }
+
+  /** 源设置里选的站点地址。取不到（比如离线测试台里没有 SharedPreferences）就当没设置。 */
+  readSitePref() {
+    try {
+      var saved = new SharedPreferences().get(SITE_PREF);
+      return saved ? String(saved) : "";
+    } catch (e) {
+      return "";
+    }
+  }
+
+  /** Mangayomi 的「源设置」入口：手选一个能打开的域名。 */
+  getSourcePreferences() {
+    return [
+      {
+        key: SITE_PREF,
+        listPreference: {
+          title: "站点地址",
+          summary: "打不开就换一个；解析不到内容时也会自动顺延下一个",
+          valueIndex: 0,
+          entries: MIRROR_ENTRIES,
+          entryValues: MIRRORS,
+        },
+      },
+    ];
+  }
+
   get base() {
-    var raw = this.source.baseUrl || "https://sscomic.top";
-    return String(raw).replace(/\/+$/, "");
+    var list = this.mirrors;
+    return list[mirrorIndex % list.length];
   }
 
   get headers() {
@@ -120,9 +172,8 @@ class DefaultExtension extends MProvider {
     var body = res && res.body ? String(res.body) : "";
 
     if (this.isCloudflareChallenge(body)) {
-      throw new Error(
-        "站点触发了 Cloudflare 人机校验，本次请求被拦截。请稍后重试；若持续失败，说明当前网络出口被站点风控。"
-      );
+      mirrorIndex = (mirrorIndex + 1) % this.mirrors.length;
+      throw new Error("当前域名被 Cloudflare 拦住，已自动切换到 " + this.base + "，请重试。");
     }
     if (res && res.statusCode && res.statusCode >= 400) {
       throw new Error("请求失败（HTTP " + res.statusCode + "）：" + url);
