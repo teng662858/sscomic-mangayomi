@@ -1,44 +1,75 @@
 # sscomic.top → Mangayomi 源（JavaScript）
 
 Mangayomi **只能通过链接导入**：More → Settings → Browse 里填的是一份 `index.json` 的地址，
-源码本身由索引里的 `sourceCodeUrl` 指向。所以这里除了源码，还准备了索引和填地址的小工具。
+源码本身由索引里的 `sourceCodeUrl` 指向。所以这里除了源码，还准备了索引和发布工具。
+
+## 已经发布好了
+
+仓库：<https://github.com/teng662858/sscomic-mangayomi>（公开，GitHub Pages 已开启）
+
+App 里 **More → Settings → Browse** 粘贴这个地址即可：
+
+```text
+https://teng662858.github.io/sscomic-mangayomi/index.json
+```
+
+一键深链（手机上点开；Safari 不认自定义协议就用下面那条中转页）：
+
+```text
+mangayomi://add-repo?repo_name=sscomic-mangayomi&repo_url=https://github.com/teng662858/sscomic-mangayomi&manga_url=https://teng662858.github.io/sscomic-mangayomi/index.json
+
+https://intradeus.github.io/http-protocol-redirector?r=mangayomi%3A%2F%2Fadd-repo%3Frepo_name%3Dsscomic-mangayomi%26repo_url%3Dhttps%3A%2F%2Fgithub.com%2Fteng662858%2Fsscomic-mangayomi%26manga_url%3Dhttps%3A%2F%2Fteng662858.github.io%2Fsscomic-mangayomi%2Findex.json
+```
+
+如果是用 LiveContainer 装的 Mangayomi，深链要换成：
+
+```text
+livecontainer://open-url?url=bWFuZ2F5b21pOi8vYWRkLXJlcG8/cmVwb19uYW1lPXNzY29taWMtbWFuZ2F5b21pJnJlcG9fdXJsPWh0dHBzOi8vZ2l0aHViLmNvbS90ZW5nNjYyODU4L3NzY29taWMtbWFuZ2F5b21pJm1hbmdhX3VybD1odHRwczovL3RlbmdlNjYyODU4LmdpdGh1Yi5pby9zc2NvbWljLW1hbmdheW9taS9pbmRleC5qc29u
+```
+
+**改了源码之后怎么更新**：改完 `javascript/manga/src/zh/sscomic.js`，把里面 `version` 加一位，
+再跑 `powershell -ExecutionPolicy Bypass -File publish.ps1`。脚本自己会写索引、自检、提交、推送
+（凭据已缓存，不会再弹登录窗），App 里刷新仓库即可看到新版本。
+
+> 如果哪天 `github.io` 连不上（国内时通时不通），换一种托管再发一次：
+> `publish.ps1 -Cdn raw`（raw.githubusercontent.com）或 `publish.ps1 -Cdn jsdelivr`。
+> 换完 App 里的仓库地址也要跟着换成脚本打印出来的那条。
+
+## 仓库结构
 
 ```text
 mangayomi/
-  index.json                             ← 仓库索引（要发布出去的那份）
+  index.json                             ← 仓库索引（App 导入的就是它的链接）
   javascript/manga/src/zh/sscomic.js     ← 源本体
-  tools/configure.mjs                    ← 把仓库地址写进索引，并打印导入链接
+  tools/configure.mjs                    ← 写仓库地址 + 打印导入链接
+  publish.ps1                            ← 一键发布（写索引 → 自检 → 提交 → 推送）
+  .gitattributes                         ← 固定 LF 换行
 ```
 
-## 一、发布（一次性）
+## 一、重新发布 / 换仓库
 
-1. 在 GitHub 建一个仓库（名字随意，比如 `sscomic-mangayomi`）。
-2. **保持这个目录结构推上去**——`index.json` 在根目录，源码在 `javascript/manga/src/zh/sscomic.js`：
+日常更新（改完源码后）：
 
-   ```powershell
-   cd mangayomi
-   git init
-   git add index.json javascript tools
-   git commit -m "sscomic source"
-   git branch -M main
-   git remote add origin https://github.com/<你的用户名>/<仓库名>.git
-   git push -u origin main
-   ```
+```powershell
+powershell -ExecutionPolicy Bypass -File publish.ps1
+```
 
-3. 把地址写进索引，并拿到导入链接：
+脚本会依次做：把仓库地址写回 `index.json` → 发布前自检（字段集合 + 索引与源码一致性）→
+`git add/commit` → `git push`，最后把三种导入链接再打一遍。凭据由 Git Credential Manager 缓存，
+第一次会弹一次 GitHub 登录窗，之后不再弹。
 
-   ```powershell
-   # 默认用 raw.githubusercontent.com
-   node tools\configure.mjs --owner <你的用户名> --repo <仓库名>
+常用参数：
 
-   # 国内 raw 经常连不上，推荐改用 GitHub Pages（在仓库 Settings → Pages 里把分支设成 main / root）
-   node tools\configure.mjs --owner <你的用户名> --repo <仓库名> --host pages
+| 参数 | 作用 |
+|---|---|
+| `-Cdn pages\|raw\|jsdelivr` | 换托管方式（默认 pages，即 GitHub Pages） |
+| `-Repo 名字` | 换仓库名（默认 `sscomic-mangayomi`） |
+| `-Owner 用户名` | 换账号（默认从凭据里反查） |
+| `-Token ghp_xxx` | 用 Personal Access Token（勾 `repo` 权限），完全不弹登录窗 |
+| `-SkipPush` | 只做本地提交，不联网（用来试跑） |
 
-   # 或者 jsDelivr 镜像
-   node tools\configure.mjs --owner <你的用户名> --repo <仓库名> --host jsdelivr
-   ```
-
-   它会改掉 `index.json` 里的 `sourceCodeUrl`，并打印三种导入方式。改完记得再 commit + push 一次。
+> 这套依赖本机的便携版 git 和 node。没装 git 时先跑 `..\_tools\setup_git.ps1`（下载到 `..\_tools\git`，
+> 不写注册表、不需要管理员权限）。如果哪天 GCM 弹窗出不来，就用 `-Token` 走 PAT。
 
 ## 二、导入（手机上）
 
