@@ -25,7 +25,7 @@ const mangayomiSources = [
     "typeSource": "single",
     "itemType": 0,
     "isNsfw": true,
-    "version": "0.1.3",
+    "version": "0.1.4",
     "dateFormat": "",
     "dateFormatLocale": "",
     "pkgPath": "manga/src/zh/kmh001.js",
@@ -266,18 +266,49 @@ class DefaultExtension extends MProvider {
     return html.indexOf("_cf_chl_opt") !== -1 || /<title>\s*Just a moment/i.test(html);
   }
 
-  async getHtml(path) {
-    var url = /^https?:\/\//i.test(path) ? path : this.base + this.pathOf(path);
-    var res = await new Client().get(url, this.headers);
-    var body = res && res.body ? String(res.body) : "";
-    if (this.isCloudflareChallenge(body)) {
+  /** 列表页：每张卡片都是 a[href^=/comic/] */
+  hasCards(html) {
+    return html.indexOf("/comic/") !== -1;
+  }
+
+  hasDetail(html) {
+    return html.indexOf("<h1") !== -1;
+  }
+
+  hasPages(html) {
+    RE_IMAGE.lastIndex = 0;
+    return RE_IMAGE.test(html);
+  }
+
+  hasChapters(html) {
+    RE_SUBTITLE.lastIndex = 0;
+    return RE_SUBTITLE.test(html);
+  }
+
+  /**
+   * 取页面。被 Cloudflare 质询、HTTP 报错、或者拿到的东西按 usable 判断根本没法解析时，
+   * 就换下一个域名把同一个地址再取一次，所有域名都试完才抛错——不用用户手动点重试。
+   */
+  async getHtml(path, check) {
+    var lastError = "";
+    for (var attempt = 0; attempt < this.mirrors.length; attempt++) {
+      var url = this.urlFor(path);
+      var res = await new Client().get(url, this.headers);
+      var body = res && res.body ? String(res.body) : "";
+      var blocked = this.isCloudflareChallenge(body);
+      var failed = res && res.statusCode && res.statusCode >= 400;
+      if (!blocked && !failed && (!check || this[check](body))) return body;
+      lastError = blocked ? "被 Cloudflare 拦住" : failed ? "HTTP " + res.statusCode : "这一页解析不出内容";
       mirrorIndex = (mirrorIndex + 1) % this.mirrors.length;
-      throw new Error("当前域名被 Cloudflare 拦住，已自动切换到 " + this.base + "，请重试。");
     }
-    if (res && res.statusCode && res.statusCode >= 400) {
-      throw new Error("请求失败（HTTP " + res.statusCode + "）：" + url);
-    }
-    return body;
+    throw new Error(
+      "试过 " + this.mirrors.length + " 个域名都拿不到内容（最后：" + lastError + "）。可在「源设置 → 站点地址」里换一个域名，或稍后重试。",
+    );
+  }
+
+  /** 相对路径或别的域名下的地址，一律落到当前选中的域名上。 */
+  urlFor(path) {
+    return this.base + this.pathOf(path);
   }
 
   // -------------------------------------------------------------------------
@@ -307,7 +338,7 @@ class DefaultExtension extends MProvider {
 
   /** 首页和搜索都没有分页；只有标签页能翻页（靠 ?page=N）。 */
   async listRequest(path, page, paged) {
-    var html = await this.getHtml(path);
+    var html = await this.getHtml(path, "hasCards");
     var list = this.parseCards(new Document(html), coverMapFromHtml(html));
     var hasNextPage = false;
     if (paged && list.length > 0) {
@@ -357,7 +388,7 @@ class DefaultExtension extends MProvider {
   // -------------------------------------------------------------------------
 
   async getDetail(url) {
-    var html = await this.getHtml(this.pathOf(url));
+    var html = await this.getHtml(this.pathOf(url), "hasDetail");
     var doc = new Document(html);
 
     var title = this.text(doc.selectFirst("h1")) || this.text(doc.selectFirst("title"));
@@ -414,7 +445,7 @@ class DefaultExtension extends MProvider {
   // -------------------------------------------------------------------------
 
   async getPageList(url) {
-    var html = await this.getHtml(this.pathOf(url));
+    var html = await this.getHtml(this.pathOf(url), "hasPages");
 
     // 图片按图源分组，先按源收齐再取一个源
     var grouped = {};
@@ -452,13 +483,13 @@ class DefaultExtension extends MProvider {
 
   /** 章节页的上一话/下一话（RSC 里的 preID / nextID），阅读器用不到，留着备用。 */
   async getNextChapterId(url) {
-    var html = await this.getHtml(this.pathOf(url));
+    var html = await this.getHtml(this.pathOf(url), "hasChapters");
     var m = RE_NEXT.exec(html);
     return m ? m[1] : "";
   }
 
   async getPrevChapterId(url) {
-    var html = await this.getHtml(this.pathOf(url));
+    var html = await this.getHtml(this.pathOf(url), "hasChapters");
     var m = RE_PREV.exec(html);
     return m ? m[1] : "";
   }
