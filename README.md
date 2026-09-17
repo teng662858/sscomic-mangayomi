@@ -1,4 +1,11 @@
-# sscomic.top → Mangayomi 源（JavaScript）
+# 中文漫画源（Mangayomi）
+
+给 Mangayomi 用的 JavaScript 源。当前收录两个站：
+
+| 源 | 站点 | 版本 | 说明 |
+|---|---|---|---|
+| 涩涩漫画 | sscomic.top | 0.1.1 | 定制 Maccms，纯 HTML 解析 |
+| K漫画 | kmh001.net | 0.1.0 | Next.js + RSC，章节与图片都在内嵌数据里；站点常年被墙，镜像 kmh001.com ~ kmh006.com |
 
 Mangayomi **只能通过链接导入**：More → Settings → Browse 里填的是一份 `index.json` 的地址，
 源码本身由索引里的 `sourceCodeUrl` 指向。所以这里除了源码，还准备了索引和发布工具。
