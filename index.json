@@ -12,14 +12,14 @@
     "hasCloudflare": true,
     "sourceCodeUrl": "https://raw.githubusercontent.com/teng662858/sscomic-mangayomi/refs/heads/main/javascript/manga/src/zh/sscomic.js",
     "apiUrl": "",
-    "version": "0.1.4",
+    "version": "0.1.5",
     "isManga": true,
     "itemType": 0,
     "isFullData": false,
     "appMinVerReq": "0.5.0",
     "additionalParams": "",
     "sourceCodeLanguage": 1,
-    "notes": "源设置里可换站点地址（sscomic.top / tw.sscomic.top）、填自定义域名、开关「域名自动切换」和「新章在前」。被 Cloudflare 拦住会自动顺延下一个域名。"
+    "notes": "主站 sscomic.top，备用 tw.sscomic.top。在「源设置 → 站点地址」里可手动切换；被拦住时会自动顺延下一个域名。"
   },
   {
     "name": "K漫画",
@@ -34,14 +34,14 @@
     "hasCloudflare": false,
     "sourceCodeUrl": "https://raw.githubusercontent.com/teng662858/sscomic-mangayomi/refs/heads/main/javascript/manga/src/zh/kmh001.js",
     "apiUrl": "",
-    "version": "0.1.5",
+    "version": "0.1.6",
     "isManga": true,
     "itemType": 0,
     "isFullData": false,
     "appMinVerReq": "0.5.0",
     "additionalParams": "",
     "sourceCodeLanguage": 1,
-    "notes": "源设置里有：站点地址（kmh001.net、.com 与 kmh002~006.com）、自定义域名、域名自动切换、新章在前、阅读图源（FREEXCOMIC / NNHANMAN）、列表封面。只索引中文标题，英文词搜不到。"
+    "notes": "站点地址在「源设置 → 站点地址」里选（当前 kmh001.net，另有 .com 与 kmh002~006.com）；被拦住或解析不到内容会自动顺延。只索引中文标题，英文词搜不到；列表封面按标题推算。"
   },
   {
     "name": "BAKA MH",
@@ -56,13 +56,13 @@
     "hasCloudflare": true,
     "sourceCodeUrl": "https://raw.githubusercontent.com/teng662858/sscomic-mangayomi/refs/heads/main/javascript/manga/src/zh/bakamh.js",
     "apiUrl": "",
-    "version": "0.1.5",
+    "version": "0.1.6",
     "isManga": true,
     "itemType": 0,
     "isFullData": false,
     "appMinVerReq": "0.5.0",
     "additionalParams": "",
     "sourceCodeLanguage": 1,
-    "notes": "WordPress + Madara。源设置里有：站点地址（bakamh.com/.ru、baka1~3.cfd）、自定义域名、域名自动切换、新章在前、兜底扫描整页图片。站点有 Cloudflare 托管质询，验证通过后即可正常使用。"
+    "notes": "WordPress + Madara。站点有多个域名（官方发布页 bakamh.app），在「源设置 → 站点地址」里可手选；被 Cloudflare 拦住时会自动顺延下一个。"
   }
 ]

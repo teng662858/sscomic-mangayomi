@@ -24,7 +24,7 @@ const mangayomiSources = [
     "typeSource": "single",
     "itemType": 0,
     "isNsfw": true,
-    "version": "0.1.5",
+    "version": "0.1.6",
     "dateFormat": "",
     "dateFormatLocale": "",
     "pkgPath": "manga/src/zh/bakamh.js",
@@ -55,7 +55,6 @@ var MIRROR_ENTRIES = MIRRORS.map(function (u, i) {
   return u.replace(/^https?:\/\//, "") + (i === 0 ? "（默认）" : "");
 });
 
-var mirrorIndex = 0;
 
 class DefaultExtension extends MProvider {
   /** 镜像列表：源设置里填的地址排在最前，其余按内置顺序跟在后面。 */
@@ -156,9 +155,9 @@ class DefaultExtension extends MProvider {
     ];
   }
 
+  /** 当前使用的域名：永远是用户选的那个，不会因为之前失败过就跑到别的域名上。 */
   get base() {
-    var list = this.mirrors;
-    return list[mirrorIndex % list.length];
+    return this.mirrors[0];
   }
 
   get headers() {
@@ -185,10 +184,16 @@ class DefaultExtension extends MProvider {
     return el ? String(el.attr(name) || "").trim() : "";
   }
 
-  /** 懒加载图片的真地址可能在 data-src / data-lazy-src / srcset 里 */
+  /**
+   * 懒加载图片的真地址可能在 data-manga-src / data-src / srcset 里。
+   *
+   * `data-manga-src` 是这个站在用的自定义属性：阅读页的 img 上只有它，真 src 由站点自己的
+   * 脚本补（`img.wp-manga-chapter-img[data-manga-src]` → `src`）。源里不跑页面脚本，
+   * 少了这一项就会一张图都取不到。
+   */
   imgSrc(el) {
     if (!el) return "";
-    var keys = ["data-src", "data-lazy-src", "data-original", "src"];
+    var keys = ["data-manga-src", "data-src", "data-lazy-src", "data-original", "data-cfsrc", "src"];
     for (var k of keys) {
       var v = this.attr(el, k);
       if (v && !/^data:/.test(v)) return v;
@@ -242,21 +247,21 @@ class DefaultExtension extends MProvider {
     // 关掉「域名自动切换」时只试一次，固定在当前域名上
     var maxAttempts = this.prefOn(AUTO_SWITCH_PREF, true) ? mirrors.length : 1;
     for (var attempt = 0; attempt < maxAttempts; attempt++) {
-      var url = this.urlFor(path);
+      // 顺延只发生在本次取页面内部：attempt 是局部序号，不写回任何全局状态
+      var url = mirrors[attempt % mirrors.length] + this.pathOf(path);
       var res = await new Client().get(url, this.headers);
       var body = res && res.body ? String(res.body) : "";
       var blocked = this.isCloudflareChallenge(body);
       var failed = res && res.statusCode && res.statusCode >= 400;
       if (!blocked && !failed && (!check || this[check](body))) return body;
       lastError = blocked ? "被 Cloudflare 拦住" : failed ? "HTTP " + res.statusCode : "这一页解析不出内容";
-      mirrorIndex = (mirrorIndex + 1) % mirrors.length;
     }
     throw new Error(
       "试过 " + maxAttempts + " 个域名都拿不到内容（最后：" + lastError + "）。可在「源设置 → 站点地址」里换一个域名，或稍后重试。",
     );
   }
 
-  /** 相对路径或别的域名下的地址，一律落到当前选中的域名上。 */
+  /** 相对路径或别的域名下的地址，一律落到用户选定的域名上（用于不在重试循环里的调用）。 */
   urlFor(path) {
     return this.base + this.pathOf(path);
   }
