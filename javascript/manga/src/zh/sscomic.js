@@ -19,7 +19,7 @@ const mangayomiSources = [
     "lang": "zh",
     "baseUrl": "https://sscomic.top",
     "apiUrl": "",
-    "iconUrl": "https://sscomic.top/sslogo.png",
+    "iconUrl": "https://raw.githubusercontent.com/teng662858/sscomic-tachimanga/refs/heads/main/icons/sscomic.png",
     "typeSource": "single",
     "itemType": 0,
     "isNsfw": true,

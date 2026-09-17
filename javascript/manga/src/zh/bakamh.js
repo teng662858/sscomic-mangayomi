@@ -20,7 +20,7 @@ const mangayomiSources = [
     "lang": "zh",
     "baseUrl": "https://bakamh.com",
     "apiUrl": "",
-    "iconUrl": "https://bakamh.com/favicon.ico",
+    "iconUrl": "https://raw.githubusercontent.com/teng662858/sscomic-tachimanga/refs/heads/main/icons/bakamh.png",
     "typeSource": "single",
     "itemType": 0,
     "isNsfw": true,

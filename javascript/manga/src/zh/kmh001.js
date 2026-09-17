@@ -21,7 +21,7 @@ const mangayomiSources = [
     "lang": "zh",
     "baseUrl": "https://kmh001.net",
     "apiUrl": "",
-    "iconUrl": "https://kmh001.net/android-icon-192x192.png",
+    "iconUrl": "https://raw.githubusercontent.com/teng662858/sscomic-tachimanga/refs/heads/main/icons/kmh001.png",
     "typeSource": "single",
     "itemType": 0,
     "isNsfw": true,
