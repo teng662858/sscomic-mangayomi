@@ -25,7 +25,7 @@ const mangayomiSources = [
     "typeSource": "single",
     "itemType": 0,
     "isNsfw": true,
-    "version": "0.1.0",
+    "version": "0.1.1",
     "dateFormat": "",
     "dateFormatLocale": "",
     "pkgPath": "manga/src/zh/kmh001.js",
@@ -36,6 +36,56 @@ var UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, l
 
 // 图片默认取 FREEXCOMIC；该源缺失时退化为张数最多的那个源（见 getPageList）。
 var PREFERRED_IMAGE_SOURCE = "FREEXCOMIC";
+
+// 列表页的 HTML 里没有 <img>（站点是懒加载的），但封面地址能按固定规律算出来：
+//   封面 = https://img.kmh.pics/ + base64url(标题 + "-cover") + .jpg
+// 这个规律是在真实数据上往返验证过的（解码站点自己给的封面地址，再用标题重新编码，完全一致）。
+// 极少数没有封面的作品会 404，阅读器会自己显示占位图。
+var COVER_BASE = "https://img.kmh.pics/";
+var B64_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+
+/** 字符串 → UTF-8 字节（不依赖 btoa，QQJS 里不一定有） */
+function utf8Bytes(str) {
+  var bytes = [];
+  for (var i = 0; i < str.length; i++) {
+    var c = str.charCodeAt(i);
+    if (c < 0x80) {
+      bytes.push(c);
+    } else if (c < 0x800) {
+      bytes.push(0xc0 | (c >> 6), 0x80 | (c & 0x3f));
+    } else if (c >= 0xd800 && c <= 0xdbff && i + 1 < str.length) {
+      var cp = 0x10000 + ((c - 0xd800) << 10) + (str.charCodeAt(++i) - 0xdc00);
+      bytes.push(0xf0 | (cp >> 18), 0x80 | ((cp >> 12) & 0x3f), 0x80 | ((cp >> 6) & 0x3f), 0x80 | (cp & 0x3f));
+    } else {
+      bytes.push(0xe0 | (c >> 12), 0x80 | ((c >> 6) & 0x3f), 0x80 | (c & 0x3f));
+    }
+  }
+  return bytes;
+}
+
+/** UTF-8 字符串 → base64url（无 = 填充，与站点一致） */
+function base64url(str) {
+  var bytes = utf8Bytes(str);
+  var out = "";
+  for (var i = 0; i < bytes.length; i += 3) {
+    var b0 = bytes[i];
+    var b1 = bytes[i + 1];
+    var b2 = bytes[i + 2];
+    out += B64_CHARS.charAt(b0 >> 2);
+    out += B64_CHARS.charAt(((b0 & 3) << 4) | (b1 === undefined ? 0 : b1 >> 4));
+    if (b1 === undefined) break;
+    out += B64_CHARS.charAt(((b1 & 15) << 2) | (b2 === undefined ? 0 : b2 >> 6));
+    if (b2 === undefined) break;
+    out += B64_CHARS.charAt(b2 & 63);
+  }
+  return out;
+}
+
+function coverUrl(title) {
+  var name = String(title || "").trim();
+  if (name === "") return "";
+  return COVER_BASE + base64url(name + "-cover") + ".jpg";
+}
 
 // 详情页/阅读页 RSC 数据块里的字段。
 // 注意：章节对象的字段顺序不固定（有的 _id 后跟 subtitle，有的先跟 title），
@@ -124,7 +174,7 @@ class DefaultExtension extends MProvider {
 
   /**
    * 卡片结构（首页/搜索/标签页通用）：一个 <a href="/comic/{id}"> 里放 h3 标题、h4 最新章节。
-   * 列表页**没有封面**（站点是懒加载的，真封面只在详情页），所以 imageUrl 留空。
+   * 卡片里没有 <img>（站点懒加载），封面按标题算（见 coverUrl 的说明）。
    */
   parseCards(doc) {
     var list = [];
@@ -136,7 +186,7 @@ class DefaultExtension extends MProvider {
       var name = this.text(el.selectFirst("h3"));
       if (!name) continue;
       seen[id] = true;
-      list.push({ name: name, imageUrl: "", link: "/comic/" + id });
+      list.push({ name: name, imageUrl: coverUrl(name), link: "/comic/" + id });
     }
     return list;
   }

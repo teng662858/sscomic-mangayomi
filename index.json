@@ -34,13 +34,13 @@
     "hasCloudflare": false,
     "sourceCodeUrl": "https://raw.githubusercontent.com/teng662858/sscomic-mangayomi/refs/heads/main/javascript/manga/src/zh/kmh001.js",
     "apiUrl": "",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "isManga": true,
     "itemType": 0,
     "isFullData": false,
     "appMinVerReq": "0.5.0",
     "additionalParams": "",
     "sourceCodeLanguage": 1,
-    "notes": "本站常年被墙，站点地址可在设置里改成 kmh002.com ~ kmh006.com 任一镜像；只索引中文标题，英文词搜不到；列表页没有封面属正常。"
+    "notes": "本站常年被墙，站点地址可在设置里改成 kmh002.com ~ kmh006.com 任一镜像；只索引中文标题，英文词搜不到；列表页没有封面属正常。 列表封面按标题推算。"
   }
 ]
