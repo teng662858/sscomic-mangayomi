@@ -24,7 +24,7 @@ const mangayomiSources = [
     "typeSource": "single",
     "itemType": 0,
     "isNsfw": true,
-    "version": "0.1.0",
+    "version": "0.1.2",
     "dateFormat": "",
     "dateFormatLocale": "",
     "pkgPath": "manga/src/zh/bakamh.js",
@@ -33,9 +33,30 @@ const mangayomiSources = [
 
 var UA = "Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Mobile Safari/537.36";
 
+// 站点域名，官方发布页 https://bakamh.app 会实时更新（当前这 5 个）。
+var MIRRORS = [
+  "https://bakamh.com",
+  "https://bakamh.ru",
+  "https://baka1.cfd",
+  "https://baka2.cfd",
+  "https://baka3.cfd",
+];
+
+// 当前使用的域名下标；被 Cloudflare 拦住就往后换（进程内有效）
+var mirrorIndex = 0;
+
 class DefaultExtension extends MProvider {
+  /** 镜像列表：源设置里填的地址排在最前，其余按内置顺序跟在后面。 */
+  get mirrors() {
+    var configured = String(this.source.baseUrl || "").trim().replace(/\/+$/, "");
+    var list = MIRRORS.slice();
+    if (configured && list.indexOf(configured) === -1) list.unshift(configured);
+    return list;
+  }
+
   get base() {
-    return String(this.source.baseUrl || "https://bakamh.com").replace(/\/+$/, "");
+    var list = this.mirrors;
+    return list[mirrorIndex % list.length];
   }
 
   get headers() {
@@ -100,7 +121,9 @@ class DefaultExtension extends MProvider {
     var res = await new Client().get(url, this.headers);
     var body = res && res.body ? String(res.body) : "";
     if (this.isCloudflareChallenge(body)) {
-      throw new Error("站点触发了 Cloudflare 校验。App 需要走校验通道才能访问，请稍后重试或检查代理设置。");
+      // 自动换下一个域名，用户重试即可——比一直卡在同一个域名上强
+      mirrorIndex = (mirrorIndex + 1) % this.mirrors.length;
+      throw new Error("当前域名被 Cloudflare 拦住，已自动切换到 " + this.base + "，请重试。");
     }
     if (res && res.statusCode && res.statusCode >= 400) {
       throw new Error("请求失败（HTTP " + res.statusCode + "）：" + url);
@@ -195,20 +218,30 @@ class DefaultExtension extends MProvider {
     else if (/连载中|連載中|Ongoing/i.test(statusText)) status = 0;
 
     // 章节：Madara 标准是 li.wp-manga-chapter a；
-    // bakamh 改过模板，章节链接可能放在自定义属性里（storage-chapter-url），所以多套兜底。
+    // bakamh 改过模板，章节链接放在自定义属性里，所以按「值以本漫画地址开头」来判定——
+    // 这样导航（首页/漫画列表）、标签、登录提示和评论锚点都会被自然排除。
     var episodes = [];
     var seen = {};
+    var mangaPath = this.pathOf(url).replace(/\/+$/, "/");
+    var lowerMangaPath = mangaPath.toLowerCase();
     var chapterEls = doc.select("li.wp-manga-chapter a, .chapter-loveYou a, li:not(.menu-item) a");
     for (var el of chapterEls) {
-      var link = this.attr(el, "href");
+      var link = this.attr(el, "storage-chapter-url");
       if (!link) {
-        // 自定义属性兜底
-        var storage = this.attr(el, "storage-chapter-url");
-        if (storage) link = storage;
+        // 元素上第一个「值以本漫画地址开头」的属性就是章节链接
+        for (var key of ["href", "data-url", "onclick"]) {
+          var value = this.attr(el, key);
+          if (!value) continue;
+          var lower = value.toLowerCase();
+          if (lower.indexOf(lowerMangaPath) === 0 && lower !== lowerMangaPath && lower.indexOf(lowerMangaPath + "#comment") !== 0) {
+            link = value;
+            break;
+          }
+        }
       }
       if (!link) continue;
       var chapterPath = this.pathOf(link);
-      if (!chapterPath || chapterPath === this.pathOf(url) || seen[chapterPath]) continue;
+      if (!chapterPath || seen[chapterPath]) continue;
       var name = this.text(el);
       if (!name) continue;
       seen[chapterPath] = true;
@@ -259,23 +292,20 @@ class DefaultExtension extends MProvider {
       }
     }
 
-    // 3) 最后兜底：直接抓页面里的图片地址
-    if (images.length === 0) {
-      var found = html.match(/https?:\/\/[^"'\s\\]+\.(?:jpg|jpeg|png|webp)/gi);
-      if (found) images = found;
-    }
-
+    // 刻意不做「扫描整页图片」的兜底：那会把主题图标、广告图当成漫画页（真机上就是这样，翻出来是乱的）。
+    // 解析不到就明确报错，比给出一堆错的图好。
     var out = [];
     var seen = {};
     for (var u of images) {
       var abs = this.absolute(u);
       if (!abs || seen[abs]) continue;
-      // 过滤主题自带的占位/图标
       if (/loading|placeholder|logo|avatar|favicon|blank\./i.test(abs)) continue;
       seen[abs] = true;
       out.push(abs);
     }
-    if (out.length === 0) throw new Error("这一章没有解析出图片，站点结构可能已变更：" + url);
+    if (out.length === 0) {
+      throw new Error("这一章没解析出图片：可能是站点结构变更，或这一页还没通过 Cloudflare 校验。请先确认网页版能正常看图。");
+    }
     return out;
   }
 

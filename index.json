@@ -56,13 +56,13 @@
     "hasCloudflare": true,
     "sourceCodeUrl": "https://raw.githubusercontent.com/teng662858/sscomic-mangayomi/refs/heads/main/javascript/manga/src/zh/bakamh.js",
     "apiUrl": "",
-    "version": "0.1.0",
+    "version": "0.1.2",
     "isManga": true,
     "itemType": 0,
     "isFullData": false,
     "appMinVerReq": "0.5.0",
     "additionalParams": "",
     "sourceCodeLanguage": 1,
-    "notes": "WordPress + Madara 主题。站点开着 Cloudflare 托管质询，纯 HTTP 客户端一律 403，所以标了 hasCloudflare，由 App 走校验通道；若拉不到内容，可在设置里配 Cloudflare 代理。"
+    "notes": "WordPress + Madara。站点有多个域名（官方发布页 bakamh.app），源会按顺序自动切换：被 Cloudflare 拦住就换下一个，重试即可。"
   }
 ]
