@@ -34,7 +34,7 @@
     "hasCloudflare": false,
     "sourceCodeUrl": "https://raw.githubusercontent.com/teng662858/sscomic-mangayomi/refs/heads/main/javascript/manga/src/zh/kmh001.js",
     "apiUrl": "",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "isManga": true,
     "itemType": 0,
     "isFullData": false,

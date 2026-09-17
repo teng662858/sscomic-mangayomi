@@ -25,7 +25,7 @@ const mangayomiSources = [
     "typeSource": "single",
     "itemType": 0,
     "isNsfw": true,
-    "version": "0.1.1",
+    "version": "0.1.2",
     "dateFormat": "",
     "dateFormatLocale": "",
     "pkgPath": "manga/src/zh/kmh001.js",
@@ -85,6 +85,59 @@ function coverUrl(title) {
   var name = String(title || "").trim();
   if (name === "") return "";
   return COVER_BASE + base64url(name + "-cover") + ".jpg";
+}
+
+/** base64url → UTF-8 字符串（把页面里给的封面地址还原成标题用） */
+function base64urlDecode(str) {
+  var table = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  var clean = String(str || "").replace(/-/g, "+").replace(/_/g, "/");
+  var bytes = [];
+  var buffer = 0;
+  var bits = 0;
+  for (var i = 0; i < clean.length; i++) {
+    var idx = table.indexOf(clean.charAt(i));
+    if (idx < 0) continue;
+    buffer = (buffer << 6) | idx;
+    bits += 6;
+    if (bits >= 8) {
+      bits -= 8;
+      bytes.push((buffer >> bits) & 0xff);
+    }
+  }
+  var out = "";
+  for (var j = 0; j < bytes.length; j++) {
+    var b = bytes[j];
+    if (b < 0x80) {
+      out += String.fromCharCode(b);
+    } else if (b >= 0xc0 && b < 0xe0 && j + 1 < bytes.length) {
+      out += String.fromCharCode(((b & 0x1f) << 6) | (bytes[++j] & 0x3f));
+    } else if (b >= 0xe0 && b < 0xf0 && j + 2 < bytes.length) {
+      out += String.fromCharCode(((b & 0x0f) << 12) | ((bytes[++j] & 0x3f) << 6) | (bytes[++j] & 0x3f));
+    } else if (b >= 0xf0 && j + 3 < bytes.length) {
+      var cp = ((b & 0x07) << 18) | ((bytes[++j] & 0x3f) << 12) | ((bytes[++j] & 0x3f) << 6) | (bytes[++j] & 0x3f);
+      cp -= 0x10000;
+      out += String.fromCharCode(0xd800 + (cp >> 10), 0xdc00 + (cp & 0x3ff));
+    }
+  }
+  return out;
+}
+
+/**
+ * 列表页的 HTML 里其实带着真实封面地址（只是没有 <img>，藏在内嵌数据里）。
+ * 文件名是 base64url("<标题>-cover")，反过来解码就能得到一张「标题 → 封面」表——
+ * 比按标题硬拼准（个别作品的命名与标题对不上，硬拼会 404，就是"有几个显示不出来"的原因）。
+ */
+function coverMapFromHtml(html) {
+  var map = {};
+  var re = /https?:\/\/img\.kmh\.pics\/([A-Za-z0-9_-]+)\.jpg/g;
+  var m;
+  while ((m = re.exec(html)) !== null) {
+    var name = base64urlDecode(m[1]);
+    if (name.length < 7 || name.indexOf("-cover") !== name.length - 6) continue;
+    var title = name.substring(0, name.length - 6);
+    if (title && !map[title]) map[title] = m[0];
+  }
+  return map;
 }
 
 // 详情页/阅读页 RSC 数据块里的字段。
@@ -176,7 +229,7 @@ class DefaultExtension extends MProvider {
    * 卡片结构（首页/搜索/标签页通用）：一个 <a href="/comic/{id}"> 里放 h3 标题、h4 最新章节。
    * 卡片里没有 <img>（站点懒加载），封面按标题算（见 coverUrl 的说明）。
    */
-  parseCards(doc) {
+  parseCards(doc, coverMap) {
     var list = [];
     var seen = {};
     for (var el of doc.select("a[href^='/comic/']")) {
@@ -186,7 +239,9 @@ class DefaultExtension extends MProvider {
       var name = this.text(el.selectFirst("h3"));
       if (!name) continue;
       seen[id] = true;
-      list.push({ name: name, imageUrl: coverUrl(name), link: "/comic/" + id });
+      // 优先用页面里给出的真实封面；没有对上再按标题推算（见 coverMapFromHtml）
+      var cover = (coverMap && coverMap[name]) || coverUrl(name);
+      list.push({ name: name, imageUrl: cover, link: "/comic/" + id });
     }
     return list;
   }
@@ -194,7 +249,7 @@ class DefaultExtension extends MProvider {
   /** 首页和搜索都没有分页；只有标签页能翻页（靠 ?page=N）。 */
   async listRequest(path, page, paged) {
     var html = await this.getHtml(path);
-    var list = this.parseCards(new Document(html));
+    var list = this.parseCards(new Document(html), coverMapFromHtml(html));
     var hasNextPage = false;
     if (paged && list.length > 0) {
       hasNextPage = html.indexOf("page=" + (page + 1)) !== -1;
