@@ -23,7 +23,7 @@ const mangayomiSources = [
     "typeSource": "single",
     "itemType": 0,
     "isNsfw": true,
-    "version": "0.1.3",
+    "version": "0.1.4",
     "dateFormat": "",
     "dateFormatLocale": "",
     "pkgPath": "manga/src/zh/sscomic.js",
@@ -61,6 +61,9 @@ var MIRRORS = [
 
 // 源设置（Mangayomi 的「源设置」页）里可以手动指定域名。
 var SITE_PREF = "site_base_url";
+var CUSTOM_SITE_PREF = "custom_site_url";
+var AUTO_SWITCH_PREF = "auto_switch_mirror";
+var NEWEST_FIRST_PREF = "newest_first";
 
 // 下拉框显示用的名字：去掉协议，第一项标注「默认」。
 var MIRROR_ENTRIES = MIRRORS.map(function (u, i) {
@@ -72,6 +75,9 @@ var mirrorIndex = 0;
 class DefaultExtension extends MProvider {
   /** 源设置里填的地址排最前，其余按内置顺序跟在后面。 */
   get mirrors() {
+    // 填了「自定义域名」就只用它：站点换域名很频繁，下拉列表来不及更新时靠这一项救急
+    var custom = this.readCustomSite();
+    if (custom) return [custom];
     var configured = String(this.readSitePref() || this.source.baseUrl || "")
       .trim()
       .replace(/\/+$/, "");
@@ -80,14 +86,33 @@ class DefaultExtension extends MProvider {
     return list;
   }
 
-  /** 源设置里选的站点地址。取不到（比如离线测试台里没有 SharedPreferences）就当没设置。 */
-  readSitePref() {
+  /** 读源设置里的一个值。取不到（离线测试台里没有 SharedPreferences）就返回默认值。 */
+  pref(key, fallback) {
     try {
-      var saved = new SharedPreferences().get(SITE_PREF);
-      return saved ? String(saved) : "";
+      var saved = new SharedPreferences().get(key);
+      if (saved === undefined || saved === null || saved === "") return fallback;
+      return String(saved);
     } catch (e) {
-      return "";
+      return fallback;
     }
+  }
+
+  /** 开关类设置：listPreference 存的是 "1"/"0"，也兼容 "true"/"false"。 */
+  prefOn(key, fallback) {
+    var value = this.pref(key, fallback ? "1" : "0").toLowerCase();
+    return value === "1" || value === "true";
+  }
+
+  /** 源设置里选的站点地址（下拉里的那个）。 */
+  readSitePref() {
+    return this.pref(SITE_PREF, "");
+  }
+
+  /** 「自定义域名」：留空表示用下拉里的域名；填了会自动补 https://、去掉结尾斜杠。 */
+  readCustomSite() {
+    var raw = this.pref(CUSTOM_SITE_PREF, "").trim();
+    if (raw === "") return "";
+    return (/^https?:\/\//i.test(raw) ? raw : "https://" + raw).replace(/\/+$/, "");
   }
 
   /** Mangayomi 的「源设置」入口：手选一个能打开的域名。 */
@@ -101,6 +126,36 @@ class DefaultExtension extends MProvider {
           valueIndex: 0,
           entries: MIRROR_ENTRIES,
           entryValues: MIRRORS,
+        },
+      },
+      {
+        key: CUSTOM_SITE_PREF,
+        editTextPreference: {
+          title: "自定义域名",
+          summary: "留空则用上面的站点地址；填了以它为准（只填域名也行，会自动补 https://）",
+          value: "",
+          dialogTitle: "自定义域名",
+          dialogMessage: "",
+        },
+      },
+      {
+        key: AUTO_SWITCH_PREF,
+        listPreference: {
+          title: "域名自动切换",
+          summary: "拿不到内容时自动换下一个域名；关掉则固定用当前域名",
+          valueIndex: 0,
+          entries: ["开", "关"],
+          entryValues: ["1", "0"],
+        },
+      },
+      {
+        key: NEWEST_FIRST_PREF,
+        listPreference: {
+          title: "新章在前",
+          summary: "章节列表把最新章节排在最前面",
+          valueIndex: 0,
+          entries: ["开", "关"],
+          entryValues: ["1", "0"],
         },
       },
     ];
@@ -186,7 +241,10 @@ class DefaultExtension extends MProvider {
    */
   async getHtml(path, check) {
     var lastError = "";
-    for (var attempt = 0; attempt < this.mirrors.length; attempt++) {
+    var mirrors = this.mirrors;
+    // 关掉「域名自动切换」时只试一次，固定在当前域名上
+    var maxAttempts = this.prefOn(AUTO_SWITCH_PREF, true) ? mirrors.length : 1;
+    for (var attempt = 0; attempt < maxAttempts; attempt++) {
       var url = this.urlFor(path);
       var res = await new Client().get(url, this.headers);
       var body = res && res.body ? String(res.body) : "";
@@ -194,10 +252,10 @@ class DefaultExtension extends MProvider {
       var failed = res && res.statusCode && res.statusCode >= 400;
       if (!blocked && !failed && (!check || this[check](body))) return body;
       lastError = blocked ? "被 Cloudflare 拦住" : failed ? "HTTP " + res.statusCode : "这一页解析不出内容";
-      mirrorIndex = (mirrorIndex + 1) % this.mirrors.length;
+      mirrorIndex = (mirrorIndex + 1) % mirrors.length;
     }
     throw new Error(
-      "试过 " + this.mirrors.length + " 个域名都拿不到内容（最后：" + lastError + "）。可在「源设置 → 站点地址」里换一个域名，或稍后重试。",
+      "试过 " + maxAttempts + " 个域名都拿不到内容（最后：" + lastError + "）。可在「源设置 → 站点地址」里换一个域名，或稍后重试。",
     );
   }
 
@@ -303,7 +361,7 @@ class DefaultExtension extends MProvider {
       this.text(doc.selectFirst("#ss-desc p")) ||
       this.text(doc.selectFirst("section.ss-desc p"));
 
-    // 章节列表在页面里是正序（第 1 话在前），反转成新章在前，与常见阅读器习惯一致。
+    // 章节列表在页面里是正序（第 1 话在前），默认反转成新章在前，与常见阅读器习惯一致。
     var episodes = [];
     for (var el of doc.select("#chapter-list a.ss-chapter-item")) {
       var link = this.attr(el, "href");
@@ -319,7 +377,8 @@ class DefaultExtension extends MProvider {
 
       episodes.push(episode);
     }
-    episodes.reverse();
+    // 站点是正序（第 1 话在前）；按设置决定是否反转成新章在前
+    if (this.prefOn(NEWEST_FIRST_PREF, true)) episodes.reverse();
 
     return {
       name: title,
