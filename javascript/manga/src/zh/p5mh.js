@@ -10,7 +10,7 @@ const mangayomiSources = [
     "typeSource": "single",
     "itemType": 0,
     "isNsfw": true,
-    "version": "0.1.0",
+    "version": "0.1.1",
     "dateFormat": "",
     "dateFormatLocale": "",
     "pkgPath": "manga/src/zh/p5mh.js",
@@ -263,8 +263,11 @@ class DefaultExtension extends MProvider {
       const href = this.attr(el, "href");
       if (!href || href.indexOf("javascript") === 0 || href.indexOf("#") === 0) continue;
       const raw = this.attr(el, CHAP_NAME_ATTR || "title") || this.text(el);
-      let name = raw.replace(/^开始阅读/, "").trim().replace(/^[(（]|[)）]$/g, "").trim() || raw.trim();
-      name = name.replace(/\s+/g, " ");
+      let name = String(raw).trim().replace(/\s+/g, " ");
+      const stripped = name.replace(/^开始阅读/, "").trim().replace(/^[(（]|[)）]$/g, "").trim();
+      if (stripped) name = stripped;
+      const pm = /^(.{2,60}?)-(第\s*\d+.*|最終話.*|最终话.*|後記.*|后记.*|番外.*|公告.*|休刊.*)$/.exec(name);
+      if (pm && pm[1].length >= 2) name = pm[2].trim();
       if (!name || name.length > 120) continue;
       const link = this.pathOf(href);
       if (seen[link]) continue;
