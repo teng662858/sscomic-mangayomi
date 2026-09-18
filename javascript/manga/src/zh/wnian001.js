@@ -10,7 +10,7 @@ const mangayomiSources = [
     "typeSource": "single",
     "itemType": 0,
     "isNsfw": true,
-    "version": "0.1.2",
+    "version": "0.1.3",
     "dateFormat": "",
     "dateFormatLocale": "",
     "pkgPath": "manga/src/zh/wnian001.js",
@@ -308,7 +308,8 @@ class DefaultExtension extends MProvider {
       (byHost[h] = byHost[h] || []).push(u);
     }
     const hosts = Object.keys(byHost);
-    return hosts.length > 1 ? byHost[Object.keys(byHost).sort((a, b) => byHost[b].length - byHost[a].length)[0]] : out;
+    const picked = hosts.length > 1 ? byHost[Object.keys(byHost).sort((a, b) => byHost[b].length - byHost[a].length)[0]] : out;
+    return picked;
   }
 
   getFilterList() {
