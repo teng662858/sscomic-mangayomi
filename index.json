@@ -12,14 +12,14 @@
     "hasCloudflare": true,
     "sourceCodeUrl": "https://raw.githubusercontent.com/teng662858/sscomic-mangayomi/refs/heads/main/javascript/manga/src/zh/sscomic.js",
     "apiUrl": "",
-    "version": "0.1.6",
+    "version": "0.1.7",
     "isManga": true,
     "itemType": 0,
     "isFullData": false,
     "appMinVerReq": "0.5.0",
     "additionalParams": "",
     "sourceCodeLanguage": 1,
-    "notes": "主站 sscomic.top，备用 tw.sscomic.top。在「源设置 → 站点地址」里可手动切换；被拦住时会自动顺延下一个域名。"
+    "notes": "主站 sscomic.top，备用 tw.sscomic.top（/custom 榜单页镜像上也有）。在「源设置 → 站点地址」里可手动切换；被拦住时会自动顺延下一个域名。筛选器除了书库的排序/分类，还多了「榜单」：人气总榜 TOP50 / 人气周榜 TOP50 / 最新更新（站点自己的功能页，各一页）。"
   },
   {
     "name": "K漫画",
@@ -34,14 +34,14 @@
     "hasCloudflare": false,
     "sourceCodeUrl": "https://raw.githubusercontent.com/teng662858/sscomic-mangayomi/refs/heads/main/javascript/manga/src/zh/kmh001.js",
     "apiUrl": "",
-    "version": "0.1.8",
+    "version": "0.1.9",
     "isManga": true,
     "itemType": 0,
     "isFullData": false,
     "appMinVerReq": "0.5.0",
     "additionalParams": "",
     "sourceCodeLanguage": 1,
-    "notes": "站点地址在「源设置 → 站点地址」里选（当前 kmh001.net，另有 .com 与 kmh002~006.com）；被拦住或解析不到内容会自动顺延。只索引中文标题，英文词搜不到；列表封面按标题推算。筛选器里「列表」可切到完本（12 条/页、可翻页），「标签」可翻页浏览；详情会多花一次搜索请求把「连载中/已完结」补回来。"
+    "notes": "站点地址在「源设置 → 站点地址」里选（当前 kmh001.net，另有 .com 与 kmh002~006.com）；被拦住或解析不到内容会自动顺延。筛选器「列表」可选 首页 / 完本（12 条/页可翻页）/ 我的书架（需登录），「标签」可翻页浏览。源设置里新增账号登录（邮箱 + 密码，Next.js 服务端动作表单登录，登录状态直接写在那一行上）；详情会多花一次搜索请求把「连载中/已完结」补回来。只索引中文标题，英文词搜不到；列表封面按标题推算。"
   },
   {
     "name": "BAKA MH",

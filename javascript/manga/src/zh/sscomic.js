@@ -7,6 +7,7 @@
 //   /category/page/N                     书库（默认按热度，共 215 页）
 //   /category/order/addtime/page/N       书库（按最新，共 215 页）
 //   /category/list/{id}/page/N           分类书库（id 见 CATEGORY_OPTIONS）
+//   /custom/top | /custom/week | /custom/update   人气总榜 / 人气周榜 / 最新更新（各一页，无分页）
 //   /search?key={kw}                     搜索第 1 页
 //   /search/{kw}/{N}                     搜索第 N 页
 //   /comic/{slug}                        详情
@@ -23,7 +24,7 @@ const mangayomiSources = [
     "typeSource": "single",
     "itemType": 0,
     "isNsfw": true,
-    "version": "0.1.6",
+    "version": "0.1.7",
     "dateFormat": "",
     "dateFormatLocale": "",
     "pkgPath": "manga/src/zh/sscomic.js",
@@ -46,6 +47,14 @@ var CATEGORY_OPTIONS = [
   { name: "同人志", value: "10" },
   { name: "单行本", value: "11" },
   { name: "杂志&短篇", value: "12" },
+];
+
+// 站点自己的三个功能页（/custom/{value}），空串 = 走书库
+var RANK_OPTIONS = [
+  { name: "不用（走书库）", value: "" },
+  { name: "人气总榜 TOP50", value: "top" },
+  { name: "人气周榜 TOP50", value: "week" },
+  { name: "最新更新", value: "update" },
 ];
 
 var ORDER_OPTIONS = [
@@ -308,7 +317,30 @@ class DefaultExtension extends MProvider {
   // -------------------------------------------------------------------------
 
   async getPopular(page) {
-    return await this.listRequest("/category/page/" + page, page);
+    return await this.listRequest(this.listPath(page, this.getFilterList()), page);
+  }
+
+  /**
+   * 列表地址：热门 / 空关键词搜索 / 榜单 共用。
+   *
+   * 「榜单」是站点的独立功能页（固定一页、不能翻页）：/custom/top 人气总榜、/custom/week 周榜、
+   * /custom/update 最新更新；没选榜单时走书库（分类 > 排序 > 默认热度）。
+   */
+  listPath(page, filters) {
+    var picked = { order: "hits", category: "", rank: "" };
+    for (var filter of filters || []) {
+      var values = filter["values"] || [];
+      var state = filter["state"] || 0;
+      var value = values[state] ? String(values[state]["value"] || "") : "";
+      if (filter["type"] === "order") picked.order = value || "hits";
+      if (filter["type"] === "category") picked.category = value;
+      if (filter["type"] === "rank") picked.rank = value;
+    }
+    // 榜单优先：它是站点自己的功能页，选了就忽略书库的分类/排序
+    if (picked.rank !== "") return "/custom/" + picked.rank;
+    if (picked.category !== "") return "/category/list/" + picked.category + "/page/" + page;
+    if (picked.order === "addtime") return "/category/order/addtime/page/" + page;
+    return "/category/page/" + page;
   }
 
   async getLatestUpdates(page) {
@@ -326,26 +358,8 @@ class DefaultExtension extends MProvider {
       return await this.listRequest(path, page);
     }
 
-    // 空关键词时走筛选器：站点不支持「分类 + 排序」组合，分类优先。
-    var order = "hits";
-    var category = "";
-    for (var filter of filters || []) {
-      var values = filter["values"] || [];
-      var state = filter["state"] || 0;
-      var picked = values[state] ? String(values[state]["value"] || "") : "";
-      if (filter["type"] === "order") order = picked || "hits";
-      if (filter["type"] === "category") category = picked;
-    }
-
-    var listPath;
-    if (category !== "") {
-      listPath = "/category/list/" + category + "/page/" + page;
-    } else if (order === "addtime") {
-      listPath = "/category/order/addtime/page/" + page;
-    } else {
-      listPath = "/category/page/" + page;
-    }
-    return await this.listRequest(listPath, page);
+    // 空关键词时走筛选器（榜单 > 分类 > 排序，规则见 listPath）
+    return await this.listRequest(this.listPath(page, filters), page);
   }
 
   // -------------------------------------------------------------------------
@@ -439,9 +453,14 @@ class DefaultExtension extends MProvider {
     for (var c of CATEGORY_OPTIONS) {
       categories.push({ type_name: "SelectOption", name: c.name, value: c.value });
     }
+    var ranks = [];
+    for (var r of RANK_OPTIONS) {
+      ranks.push({ type_name: "SelectOption", name: r.name, value: r.value });
+    }
     return [
       { type: "order", name: "排序", type_name: "SelectFilter", values: orders },
       { type: "category", name: "分类", type_name: "SelectFilter", values: categories },
+      { type: "rank", name: "榜单", type_name: "SelectFilter", values: ranks },
     ];
   }
 }

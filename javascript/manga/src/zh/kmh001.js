@@ -25,7 +25,7 @@ const mangayomiSources = [
     "typeSource": "single",
     "itemType": 0,
     "isNsfw": true,
-    "version": "0.1.8",
+    "version": "0.1.9",
     "dateFormat": "",
     "dateFormatLocale": "",
     "pkgPath": "manga/src/zh/kmh001.js",
@@ -158,6 +158,27 @@ function statusFromSearchHtml(html, id) {
   return 5; // unknown
 }
 
+/**
+ * 从响应头里挑出会话 cookie（只要 name=value 那一段，丢掉 Path/HttpOnly 这些属性）。
+ *
+ * Mangayomi 返回的 headers 键名是小写的；多个 Set-Cookie 会被合并成一个逗号分隔的串，
+ * 所以先按逗号切、再各自截到分号为止。
+ */
+function cookieFromHeaders(headers) {
+  if (!headers) return "";
+  var raw = headers["set-cookie"] || headers["Set-Cookie"] || "";
+  if (!raw) return "";
+  var out = [];
+  for (var part of String(raw).split(",")) {
+    var pair = part.split(";")[0].trim();
+    if (!pair || pair.indexOf("=") <= 0) continue;
+    // 只留 name=value 形式（属性片段会被上面的分号截掉）
+    if (!/^[^=\s]+=[^=\s]*$/.test(pair)) continue;
+    if (out.indexOf(pair) === -1) out.push(pair);
+  }
+  return out.join("; ");
+}
+
 // 详情页/阅读页 RSC 数据块里的字段。// 注意：章节对象的字段顺序不固定（有的 _id 后跟 subtitle，有的先跟 title），
 // 所以先整体框出 `{"_id":"..."...}` 这个对象，再在对象内单独取字段。
 var RE_CHAPTER_OBJ = /\{\\"_id\\":\\"([0-9a-f]{24})\\"[^{}]*\}/g;
@@ -193,6 +214,14 @@ var AUTO_SWITCH_PREF = "auto_switch_mirror";
 var NEWEST_FIRST_PREF = "newest_first";
 var IMAGE_SOURCE_PREF = "image_source";
 var SHOW_LIST_COVER_PREF = "list_cover";
+var LOGIN_ENABLED_PREF = "login_enabled";
+var LOGIN_USER_PREF = "login_username";
+var LOGIN_PASS_PREF = "login_password";
+var LOGIN_COOKIE_PREF = "login_cookie";
+var LOGIN_STATUS_PREF = "login_status";
+
+// 未登录时 /shelf 页面上的原话（用它来判断登录到底成没成，不靠猜）
+var NOT_LOGGED_IN_TEXT = "您还没有登录";
 
 // 下拉框显示用的名字：去掉协议，第一项标注「默认」。
 var MIRROR_ENTRIES = MIRRORS.map(function (u, i) {
@@ -297,6 +326,36 @@ class DefaultExtension extends MProvider {
         },
       },
       {
+        key: LOGIN_ENABLED_PREF,
+        listPreference: {
+          title: "启用账号登录",
+          summary: "打开后会用下面的邮箱密码登录站点；「列表」里的「我的书架」需要它",
+          valueIndex: 1,
+          entries: ["开", "关"],
+          entryValues: ["1", "0"],
+        },
+      },
+      {
+        key: LOGIN_USER_PREF,
+        editTextPreference: {
+          title: "账号（邮箱）",
+          summary: "站点注册用的邮箱",
+          value: "",
+          dialogTitle: "账号（邮箱）",
+          dialogMessage: "",
+        },
+      },
+      {
+        key: LOGIN_PASS_PREF,
+        editTextPreference: {
+          title: "密码",
+          summary: "只存在本机；登录请求走 HTTPS",
+          value: "",
+          dialogTitle: "密码",
+          dialogMessage: "",
+        },
+      },
+      {
         key: SHOW_LIST_COVER_PREF,
         listPreference: {
           title: "列表封面",
@@ -315,11 +374,86 @@ class DefaultExtension extends MProvider {
   }
 
   get headers() {
-    return {
+    var h = {
       "User-Agent": UA,
       "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
       Referer: this.base + "/",
     };
+    // 登录过就带上会话 cookie（Mangayomi 自己也会带它记住的 cookie，这里再兜一层）
+    var cookie = this.sessionCookie;
+    if (cookie) h["Cookie"] = cookie;
+    return h;
+  }
+
+  /** 会话 cookie：先看内存，再看写进源设置里的那份。 */
+  get sessionCookie() {
+    if (this.cookieCache === undefined) {
+      this.cookieCache = this.pref(LOGIN_COOKIE_PREF, "");
+    }
+    return this.cookieCache || "";
+  }
+
+  /** 把字符串写回源设置（Mangayomi 的 SharedPreferences 支持 setString）。 */
+  savePref(key, value) {
+    try {
+      new SharedPreferences().setString(key, String(value == null ? "" : value));
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // 账号登录
+  //
+  // 站点的登录是 Next.js 的服务端动作表单：隐藏字段 $ACTION_ID_<hex> 每次打开登录页都可能变，
+  // 所以先 GET 一次登录页把 id 抠出来，再用 urlencoded 表单 POST 回去。
+  // 判断成功不靠猜：登录后请求 /shelf，页面里还在说「您还没有登录」就是没成。
+  // -------------------------------------------------------------------------
+
+  async ensureLogin() {
+    if (this.loginState === "ok") return "登录成功";
+    if (!this.prefOn(LOGIN_ENABLED_PREF, false)) return "未启用（打开「启用账号登录」）";
+    if (this.loginState === "failed") return this.pref(LOGIN_STATUS_PREF, "还没登录过");
+    var status = await this.tryLogin();
+    this.loginState = status.indexOf("登录成功") === 0 ? "ok" : "failed";
+    this.savePref(LOGIN_STATUS_PREF, status);
+    return status;
+  }
+
+  async tryLogin() {
+    var user = this.pref(LOGIN_USER_PREF, "").trim();
+    var password = this.pref(LOGIN_PASS_PREF, "");
+    if (!user || !password) return "请先填邮箱和密码";
+    try {
+      var page = await this.getHtml("/login", null);
+      var m = /\$ACTION_ID_([0-9a-f]{16,})/.exec(page);
+      if (!m) return "登录页打不开或站点改版了（没找到登录表单）";
+      var body =
+        "$ACTION_ID_" + m[1] +
+        "=&back=&email=" + encodeURIComponent(user) +
+        "&password=" + encodeURIComponent(password);
+      var res = await new Client().post(this.base + "/login", {
+        "User-Agent": UA,
+        "Content-Type": "application/x-www-form-urlencoded",
+        Referer: this.base + "/login",
+      }, body);
+      var html = String(res && res.body ? res.body : "");
+      var cookie = cookieFromHeaders(res && res.headers);
+      if (cookie) {
+        this.cookieCache = cookie;
+        this.savePref(LOGIN_COOKIE_PREF, cookie);
+      }
+      var err = /text-red-500[^>]*>([^<]{2,40})</.exec(html);
+      if (err) return "登录失败：" + err[1].trim();
+      var shelf = await this.getHtml("/shelf", null);
+      if (shelf.indexOf(NOT_LOGGED_IN_TEXT) !== -1) {
+        return "登录没生效（站点仍认为未登录，请核对邮箱密码）";
+      }
+      return "登录成功：" + user;
+    } catch (e) {
+      return "登录请求失败：" + String(e && e.message ? e.message : e).slice(0, 60);
+    }
   }
 
   getHeaders(url) {
@@ -436,6 +570,18 @@ class DefaultExtension extends MProvider {
   }
 
   /** 首页和搜索都没有分页；只有标签页能翻页（靠 ?page=N）。 */
+  /**
+   * 「我的书架」：站点的 /shelf（登录后才是内容）。没登录就别装作拿到空列表，
+   * 直接把登录状态抛出来，用户才知道要先去源设置里登录。
+   */
+  async shelfRequest(page) {
+    var status = await this.ensureLogin();
+    if (this.loginState !== "ok") {
+      throw new Error(status + "（「我的书架」需要先在源设置里登录）");
+    }
+    return await this.listRequest("/shelf", page, false);
+  }
+
   async listRequest(path, page, paged) {
     var html = await this.getHtml(path, "hasCards");
     var list = this.parseCards(new Document(html), coverMapFromHtml(html));
@@ -451,6 +597,9 @@ class DefaultExtension extends MProvider {
     // Mangayomi 的筛选器一般只随 search 传进来，所以「列表=完本」主要靠空关键词搜索走 /complete。
     if (this.readListFilter(filters) === "complete") {
       return await this.listRequest("/complete?page=" + page, page, true);
+    }
+    if (this.readListFilter(filters) === "shelf") {
+      return await this.shelfRequest(page);
     }
     if (page > 1) return { list: [], hasNextPage: false };
     return await this.listRequest("/home", 1, false);
@@ -485,6 +634,9 @@ class DefaultExtension extends MProvider {
     // 没有标签时看「列表」：选了完本就走 /complete（12 条一页，可翻页）
     if (this.readListFilter(filters) === "complete") {
       return await this.listRequest("/complete?page=" + page, page, true);
+    }
+    if (this.readListFilter(filters) === "shelf") {
+      return await this.shelfRequest(page);
     }
 
     if (page > 1) return { list: [], hasNextPage: false };
@@ -632,6 +784,7 @@ class DefaultExtension extends MProvider {
         values: [
           { type_name: "SelectOption", name: "首页", value: "" },
           { type_name: "SelectOption", name: "完本（可翻页）", value: "complete" },
+          { type_name: "SelectOption", name: "我的书架（需登录）", value: "shelf" },
         ],
       },
       { type: "tag", name: "标签", type_name: "SelectFilter", values: tagValues },
