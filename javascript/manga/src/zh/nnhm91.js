@@ -10,7 +10,7 @@ const mangayomiSources = [
     "typeSource": "single",
     "itemType": 0,
     "isNsfw": true,
-    "version": "0.1.1",
+    "version": "0.1.2",
     "dateFormat": "",
     "dateFormatLocale": "",
     "pkgPath": "manga/src/zh/nnhm91.js",
@@ -32,7 +32,7 @@ const DETAIL_TITLE = "h1";
 const DETAIL_COVER = ".detailImg img, .comicImg img";
 const CHAP_SEL = "a[href*='chapter-']";
 const CHAP_NAME_ATTR = "title";
-const IMG_SEL = "img[data-src], .content img";
+const IMG_SEL = ".img-wrap img, img[data-src]";
 const IMG_ATTRS = ["data-src", "data-original", "src"];
 
 const SITE_PREF = "site_base_url";
@@ -301,7 +301,14 @@ class DefaultExtension extends MProvider {
       if (out.indexOf(abs) === -1) out.push(abs);
     }
     if (out.length === 0) throw new Error("这一章没解析出图片（站点可能改版了）。");
-    return out;
+    // 只保留张数最多的那个图床（推荐位/广告的图在别的域名，混进来会导致整页加载失败）
+    const byHost = {};
+    for (const u of out) {
+      const h = (/^https?:\/\/([^/]+)/.exec(u) || [, ""])[1];
+      (byHost[h] = byHost[h] || []).push(u);
+    }
+    const hosts = Object.keys(byHost);
+    return hosts.length > 1 ? byHost[Object.keys(byHost).sort((a, b) => byHost[b].length - byHost[a].length)[0]] : out;
   }
 
   getFilterList() {
