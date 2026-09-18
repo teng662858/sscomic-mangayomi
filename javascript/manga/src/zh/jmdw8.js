@@ -10,7 +10,7 @@ const mangayomiSources = [
     "typeSource": "single",
     "itemType": 0,
     "isNsfw": true,
-    "version": "0.1.3",
+    "version": "0.1.4",
     "dateFormat": "",
     "dateFormatLocale": "",
     "pkgPath": "manga/src/zh/jmdw8.js",
@@ -38,6 +38,8 @@ const IMG_ATTRS = ["data-src", "data-original", "src"];
 const SITE_PREF = "site_base_url";
 const CUSTOM_SITE_PREF = "custom_site_url";
 const NEWEST_FIRST_PREF = "newest_first";
+const IMAGE_ROUTE_PREF = "image_route";
+const IMAGE_HOST_FALLBACKS = { "img.nnpic.xyz": "thumb.niaopic.com" };
 
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/604.1";
 const SKIP_IMG_RX = /logo|icon|avatar|blank|loading|placeholder|spacer|qrcode|banner|广告|yandex|watch\/|1x1|pixel|(?:^|[/_.-])ads?(?:[/_.-]|$)/i;
@@ -309,7 +311,27 @@ class DefaultExtension extends MProvider {
     }
     const hosts = Object.keys(byHost);
     const picked = hosts.length > 1 ? byHost[Object.keys(byHost).sort((a, b) => byHost[b].length - byHost[a].length)[0]] : out;
-    return picked;
+    return await this.rerouteImages(picked);
+  }
+
+  /** 图片换线：某些图床在部分网络不可达，同内容的镜像域名路径一样（实测字节一致）。 */
+  async rerouteImages(urls) {
+    if (!urls || urls.length === 0) return urls;
+    const mode = this.pref(IMAGE_ROUTE_PREF, "");
+    if (mode === "origin") return urls;
+    const m = /^https?:\/\/([^/]+)/.exec(urls[0]);
+    const host = m ? m[1] : "";
+    const alt = IMAGE_HOST_FALLBACKS[host];
+    if (!alt) return urls;
+    if (mode === "mirror") return urls.map((u) => u.replace("://" + host + "/", "://" + alt + "/"));
+    let ok;
+    try {
+      const res = await new Client().get(urls[0], this.headers);
+      ok = !!(res && res.statusCode && res.statusCode < 400);
+    } catch (e) {
+      ok = false;
+    }
+    return ok ? urls : urls.map((u) => u.replace("://" + host + "/", "://" + alt + "/"));
   }
 
   getFilterList() {
@@ -337,6 +359,7 @@ class DefaultExtension extends MProvider {
     return [
       { key: SITE_PREF, listPreference: { title: "站点地址", summary: "打不开就换一个；解析不到内容时也会自动顺延下一个", valueIndex: 0, entries: entries, entryValues: MIRRORS } },
       { key: CUSTOM_SITE_PREF, editTextPreference: { title: "自定义域名", summary: "留空则用上面的站点地址；填了以它为准（只填域名也行，会自动补 https://）", value: "", dialogTitle: "自定义域名", dialogMessage: "" } },
+      { key: IMAGE_ROUTE_PREF, listPreference: { title: "图片线路", summary: "原图床打不开时自动换到同内容的镜像域名", valueIndex: 0, entries: ["自动（推荐）", "只用原始图床", "只用备用镜像"], entryValues: ["", "origin", "mirror"] } },
       { key: NEWEST_FIRST_PREF, listPreference: { title: "新章在前", summary: "章节列表把最新章节排在最前面；App 里若改成按章节号排序，以 App 的为准", valueIndex: 0, entries: ["开", "关"], entryValues: ["1", "0"] } },
     ];
   }
