@@ -25,7 +25,7 @@ const mangayomiSources = [
     "typeSource": "single",
     "itemType": 0,
     "isNsfw": true,
-    "version": "0.1.7",
+    "version": "0.1.8",
     "dateFormat": "",
     "dateFormatLocale": "",
     "pkgPath": "manga/src/zh/kmh001.js",
@@ -140,8 +140,25 @@ function coverMapFromHtml(html) {
   return map;
 }
 
-// 详情页/阅读页 RSC 数据块里的字段。
-// 注意：章节对象的字段顺序不固定（有的 _id 后跟 subtitle，有的先跟 title），
+/**
+ * 从搜索结果里读某部作品的连载状态。
+ *
+ * 详情页整页都没有「连载」二字（状态是客户端渲染的），但搜索结果卡片上写着
+ * 「连载状态：连载中 / 已完结」，所以详情多花一次搜索请求把状态补回来。
+ * 卡片里按「链接 → 标题 → 话数 → 更新时间 → 连载状态」排列，窗口截到下一张卡片的
+ * 链接为止，免得读到别人的状态。取不到就返回 5（Mangayomi 的 unknown）。
+ */
+function statusFromSearchHtml(html, id) {
+  var at = html.indexOf("/comic/" + id);
+  if (at < 0) return 5;
+  var next = html.indexOf("/comic/", at + 1);
+  var card = html.slice(at, next > at ? next : at + 4000);
+  if (card.indexOf("已完结") !== -1) return 1; // completed
+  if (card.indexOf("连载中") !== -1) return 0; // ongoing
+  return 5; // unknown
+}
+
+// 详情页/阅读页 RSC 数据块里的字段。// 注意：章节对象的字段顺序不固定（有的 _id 后跟 subtitle，有的先跟 title），
 // 所以先整体框出 `{"_id":"..."...}` 这个对象，再在对象内单独取字段。
 var RE_CHAPTER_OBJ = /\{\\"_id\\":\\"([0-9a-f]{24})\\"[^{}]*\}/g;
 var RE_SUBTITLE = /\\"subtitle\\":\\"([^\\]*)\\"/;
@@ -263,7 +280,7 @@ class DefaultExtension extends MProvider {
         key: NEWEST_FIRST_PREF,
         listPreference: {
           title: "新章在前",
-          summary: "章节列表把最新章节排在最前面",
+          summary: "章节列表把最新章节排在最前面；App 里若把章节排序改成「按章节号」，以 App 的为准",
           valueIndex: 0,
           entries: ["开", "关"],
           entryValues: ["1", "0"],
@@ -273,7 +290,7 @@ class DefaultExtension extends MProvider {
         key: IMAGE_SOURCE_PREF,
         listPreference: {
           title: "阅读图源",
-          summary: "本站章节页有两组图源，默认优先 FREEXCOMIC",
+          summary: "本站章节页有两组图源，默认优先 FREEXCOMIC；该章没有选的这个源时会自动退回可用的那个",
           valueIndex: 0,
           entries: ["自动（优先 FREEXCOMIC）", "只用 FREEXCOMIC", "只用 NNHANMAN"],
           entryValues: ["", "FREEXCOMIC", "NNHANMAN"],
@@ -429,8 +446,12 @@ class DefaultExtension extends MProvider {
     return { list: list, hasNextPage: hasNextPage };
   }
 
-  async getPopular(page) {
-    // 站点没有"热门"榜，首页就是最新更新列表，且只有第 1 页。
+  async getPopular(page, filters) {
+    // 站点没有"热门"榜：默认用首页（只有第 1 页）。
+    // Mangayomi 的筛选器一般只随 search 传进来，所以「列表=完本」主要靠空关键词搜索走 /complete。
+    if (this.readListFilter(filters) === "complete") {
+      return await this.listRequest("/complete?page=" + page, page, true);
+    }
     if (page > 1) return { list: [], hasNextPage: false };
     return await this.listRequest("/home", 1, false);
   }
@@ -459,6 +480,11 @@ class DefaultExtension extends MProvider {
     }
     if (tag !== "") {
       return await this.listRequest("/tag?value=" + encodeURIComponent(tag) + "&page=" + page, page, true);
+    }
+
+    // 没有标签时看「列表」：选了完本就走 /complete（12 条一页，可翻页）
+    if (this.readListFilter(filters) === "complete") {
+      return await this.listRequest("/complete?page=" + page, page, true);
     }
 
     if (page > 1) return { list: [], hasNextPage: false };
@@ -507,9 +533,20 @@ class DefaultExtension extends MProvider {
       }
       episodes.push(ep);
     }
-    // 站点是正序（第 1 话在前），默认反转成新章在前
     // 站点是正序（第 1 话在前）；按设置决定是否反转成新章在前
     if (this.prefOn(NEWEST_FIRST_PREF, true)) episodes.reverse();
+
+    // 站点没有统一的连载状态字段：详情页没有，但搜索结果卡片上有，多搜一次补回来
+    var status = 5; // unknown（Mangayomi 的 status 是 0=连载中 1=已完结 5=未知）
+    try {
+      var comicId = this.comicId(this.pathOf(url));
+      if (comicId) {
+        var searchHtml = await this.getHtml("/search?key=" + encodeURIComponent(title), null);
+        status = statusFromSearchHtml(searchHtml, comicId);
+      }
+    } catch (e) {
+      status = 5;
+    }
 
     return {
       name: title,
@@ -517,8 +554,7 @@ class DefaultExtension extends MProvider {
       description: description,
       genre: genre,
       author: author,
-      // 站点没有统一的连载状态字段
-      status: 5,
+      status: status,
       episodes: episodes,
     };
   }
@@ -584,10 +620,32 @@ class DefaultExtension extends MProvider {
   // -------------------------------------------------------------------------
 
   getFilterList() {
-    var values = [{ type_name: "SelectOption", name: "全部（首页）", value: "" }];
+    var tagValues = [{ type_name: "SelectOption", name: "全部（首页）", value: "" }];
     for (var tag of TAGS) {
-      values.push({ type_name: "SelectOption", name: tag, value: tag });
+      tagValues.push({ type_name: "SelectOption", name: tag, value: tag });
     }
-    return [{ type: "tag", name: "标签", type_name: "SelectFilter", values: values }];
+    return [
+      {
+        type: "list",
+        name: "列表",
+        type_name: "SelectFilter",
+        values: [
+          { type_name: "SelectOption", name: "首页", value: "" },
+          { type_name: "SelectOption", name: "完本（可翻页）", value: "complete" },
+        ],
+      },
+      { type: "tag", name: "标签", type_name: "SelectFilter", values: tagValues },
+    ];
+  }
+
+  /** 读筛选器里「列表」的选择；没选就返回空串（首页）。 */
+  readListFilter(filters) {
+    for (var filter of filters || []) {
+      if (filter["type"] !== "list") continue;
+      var values = filter["values"] || [];
+      var picked = values[filter["state"] || 0];
+      return picked ? String(picked.value || "") : "";
+    }
+    return "";
   }
 }

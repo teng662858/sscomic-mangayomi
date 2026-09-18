@@ -34,14 +34,14 @@
     "hasCloudflare": false,
     "sourceCodeUrl": "https://raw.githubusercontent.com/teng662858/sscomic-mangayomi/refs/heads/main/javascript/manga/src/zh/kmh001.js",
     "apiUrl": "",
-    "version": "0.1.7",
+    "version": "0.1.8",
     "isManga": true,
     "itemType": 0,
     "isFullData": false,
     "appMinVerReq": "0.5.0",
     "additionalParams": "",
     "sourceCodeLanguage": 1,
-    "notes": "站点地址在「源设置 → 站点地址」里选（当前 kmh001.net，另有 .com 与 kmh002~006.com）；被拦住或解析不到内容会自动顺延。只索引中文标题，英文词搜不到；列表封面按标题推算。"
+    "notes": "站点地址在「源设置 → 站点地址」里选（当前 kmh001.net，另有 .com 与 kmh002~006.com）；被拦住或解析不到内容会自动顺延。只索引中文标题，英文词搜不到；列表封面按标题推算。筛选器里「列表」可切到完本（12 条/页、可翻页），「标签」可翻页浏览；详情会多花一次搜索请求把「连载中/已完结」补回来。"
   },
   {
     "name": "BAKA MH",
