@@ -24,7 +24,7 @@ const mangayomiSources = [
     "typeSource": "single",
     "itemType": 0,
     "isNsfw": true,
-    "version": "0.1.6",
+    "version": "0.1.7",
     "dateFormat": "",
     "dateFormatLocale": "",
     "pkgPath": "manga/src/zh/bakamh.js",
@@ -255,6 +255,9 @@ class DefaultExtension extends MProvider {
       var failed = res && res.statusCode && res.statusCode >= 400;
       if (!blocked && !failed && (!check || this[check](body))) return body;
       lastError = blocked ? "被 Cloudflare 拦住" : failed ? "HTTP " + res.statusCode : "这一页解析不出内容";
+    }
+    if (lastError.indexOf("被 Cloudflare 拦住") !== -1) {
+      throw new Error("站点被 Cloudflare 拦住：请在网页视图里打开站点过一次验证，返回后再重试。");
     }
     throw new Error(
       "试过 " + maxAttempts + " 个域名都拿不到内容（最后：" + lastError + "）。可在「源设置 → 站点地址」里换一个域名，或稍后重试。",
