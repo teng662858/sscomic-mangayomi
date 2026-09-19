@@ -1,1 +1,47 @@
-[]
+[
+
+    {
+
+        "name":  "爱丽丝书屋",
+
+        "id":  523852384,
+
+        "baseUrl":  "https://www.alicesw.com",
+
+        "lang":  "zh",
+
+        "typeSource":  "single",
+
+        "iconUrl":  "https://raw.githubusercontent.com/teng662858/sscomic-mangayomi/refs/heads/main/alicesw.png",
+
+        "dateFormat":  "",
+
+        "dateFormatLocale":  "",
+
+        "isNsfw":  true,
+
+        "hasCloudflare":  false,
+
+        "sourceCodeUrl":  "https://raw.githubusercontent.com/teng662858/sscomic-mangayomi/refs/heads/main/novel/dart/novel/src/zh/alicesw/alicesw.dart",
+
+        "apiUrl":  "",
+
+        "version":  "1.0.0",
+
+        "isManga":  false,
+
+        "itemType":  2,
+
+        "isFullData":  false,
+
+        "appMinVerReq":  "0.5.0",
+
+        "additionalParams":  "",
+
+        "sourceCodeLanguage":  0,
+
+        "notes":  "小說源；無 Cloudflare，直接抓 HTML。最新/人氣榜/分類篩選（亂倫、都市、玄幻…）/搜索，詳情頁取封面簡介，章節列表自動取全本目錄，正文在閱讀器裡排版閱讀。"
+
+    }
+
+]
