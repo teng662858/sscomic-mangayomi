@@ -4,7 +4,7 @@ const mangayomiSources = [
   {
     "name": "漫香阁",
     "lang": "zh",
-    "baseUrl": "https://mxgmxg.com",
+    "baseUrl": "https://xn--o79-mxgmxgcom-yp8ve33bkpevz1kpxq.manxiange.com",
     "apiUrl": "",
     "iconUrl": "https://raw.githubusercontent.com/teng662858/sscomic-tachimanga/refs/heads/main/icons/mxgmxg.png",
     "typeSource": "single",
@@ -17,7 +17,7 @@ const mangayomiSources = [
   },
 ];
 
-const MIRRORS = ["https://mxgmxg.com", "https://www.mxgmxg.com", "https://xn--wgv69rba1382b.com"];
+const MIRRORS = ["https://xn--o79-mxgmxgcom-yp8ve33bkpevz1kpxq.manxiange.com", "https://xn--ogv-mxgmxgcom-yp8ve33bkpevz1kpxq.mxgmxg-com.com", "https://xn--vny-mxgmxgcom-yp8ve33bkpevz1kpxq.mxgmh.com", "https://mxgmxg.com", "https://www.mxgmxg.com"];
 const POPULAR = "/list-1.html";
 const LATEST = "/list-1.html";
 const SEARCH = "/search.php?key={q}";

@@ -222,7 +222,7 @@
   {
     "name": "漫香阁",
     "id": 1957051358,
-    "baseUrl": "https://mxgmxg.com",
+    "baseUrl": "https://xn--o79-mxgmxgcom-yp8ve33bkpevz1kpxq.manxiange.com",
     "lang": "zh",
     "typeSource": "single",
     "iconUrl": "https://raw.githubusercontent.com/teng662858/sscomic-tachimanga/refs/heads/main/icons/mxgmxg.png",
@@ -239,7 +239,7 @@
     "appMinVerReq": "0.5.0",
     "additionalParams": "",
     "sourceCodeLanguage": 1,
-    "notes": "韩漫/日漫/Cosplay 分类；站点有 Cloudflare，扩展走的是能直连的镜像域名 mxgmxg.com，可在源设置里切换。"
+    "notes": "站点自带多个域名（发布页给的 manxiange.com / mxgmxg-com.com / mxgmh.com 三条，另加 mxgmxg.com 备用），默认用第一条，可在「源设置 → 站点地址」里切换；被拦或解析不到会自动顺延。分类：韩漫/日漫/Cosplay 等。"
   },
   {
     "name": "禁漫大王",
