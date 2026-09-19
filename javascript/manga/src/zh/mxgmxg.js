@@ -2,37 +2,37 @@
 // 说明：这些站的列表/详情/章节结构和 Tachimanga 版一一对应，选择器都是从真实页面实测来的。
 const mangayomiSources = [
   {
-    "name": "万年漫画",
+    "name": "漫香阁",
     "lang": "zh",
-    "baseUrl": "https://www.wnian001.com",
+    "baseUrl": "https://mxgmxg.com",
     "apiUrl": "",
-    "iconUrl": "https://raw.githubusercontent.com/teng662858/sscomic-tachimanga/refs/heads/main/icons/wnian001.png",
+    "iconUrl": "https://raw.githubusercontent.com/teng662858/sscomic-tachimanga/refs/heads/main/icons/mxgmxg.png",
     "typeSource": "single",
     "itemType": 0,
     "isNsfw": true,
     "version": "0.1.4",
     "dateFormat": "",
     "dateFormatLocale": "",
-    "pkgPath": "manga/src/zh/wnian001.js",
+    "pkgPath": "manga/src/zh/mxgmxg.js",
   },
 ];
 
-const MIRRORS = ["https://www.wnian001.com", "https://www.wnmh01.com"];
-const POPULAR = "/page/{p}";
-const LATEST = "/page/{p}";
-const SEARCH = "/?s={q}";
-const CATALOGS = [{ name: "全部", value: "/page/{p}" }, { name: "短篇漫画", value: "/item/%e7%9f%ad%e7%af%87%e6%bc%ab%e7%94%bb" }, { name: "连载漫画", value: "/item/%e8%bf%9e%e8%bd%bd" }, { name: "完结漫画", value: "/item/%e5%ae%8c%e7%bb%93" }, { name: "精品漫画", value: "/item/%e7%b2%be%e5%93%81%e6%bc%ab%e7%94%bb" }];
-const CARD_SEL = "a.thumbnail";
+const MIRRORS = ["https://mxgmxg.com", "https://www.mxgmxg.com", "https://xn--wgv69rba1382b.com"];
+const POPULAR = "/list-1.html";
+const LATEST = "/list-1.html";
+const SEARCH = "/search.php?key={q}";
+const CATALOGS = [{ name: "韩漫", value: "/list-1.html" }, { name: "日漫", value: "/list-2.html" }, { name: "Cosplay", value: "/list-3.html" }, { name: "分类4", value: "/list-4.html" }, { name: "分类5", value: "/list-5.html" }, { name: "分类6", value: "/list-6.html" }];
+const CARD_SEL = "a[href^='book-'], a[href*='content-']";
 const LINK_FROM = "";
-const TITLE_FROM = "h2 a";
-const COVER_FROM = "img";
-const COVER_ATTRS = ["src", "data-src"];
+const TITLE_FROM = "h3";
+const COVER_FROM = "self";
+const COVER_ATTRS = [];
 const SKIP_SEL = "";
 const DETAIL_TITLE = "h1";
-const DETAIL_COVER = ".article-content img, img[src*='cover']";
-const CHAP_SEL = "a.chapter-link";
+const DETAIL_COVER = "div[style*='background-image'], .book-cover img, img[data-src]";
+const CHAP_SEL = "a[href*='content-']";
 const CHAP_NAME_ATTR = "";
-const IMG_SEL = ".content img, img[data-src], .article-content img";
+const IMG_SEL = "img";
 const IMG_ATTRS = ["data-src", "data-original", "src"];
 
 const SITE_PREF = "site_base_url";

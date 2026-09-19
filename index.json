@@ -220,6 +220,28 @@
     "notes": "主站 sscomic.top，备用 tw.sscomic.top（/custom 榜单页镜像上也有）。在「源设置 → 站点地址」里可手动切换；被拦住时会自动顺延下一个域名。筛选器除了书库的排序/分类，还多了「榜单」：人气总榜 TOP50 / 人气周榜 TOP50 / 最新更新（站点自己的功能页，各一页）。"
   },
   {
+    "name": "漫香阁",
+    "id": 1957051358,
+    "baseUrl": "https://mxgmxg.com",
+    "lang": "zh",
+    "typeSource": "single",
+    "iconUrl": "https://raw.githubusercontent.com/teng662858/sscomic-tachimanga/refs/heads/main/icons/mxgmxg.png",
+    "dateFormat": "",
+    "dateFormatLocale": "",
+    "isNsfw": true,
+    "hasCloudflare": false,
+    "sourceCodeUrl": "https://raw.githubusercontent.com/teng662858/sscomic-mangayomi/refs/heads/main/javascript/manga/src/zh/mxgmxg.js",
+    "apiUrl": "",
+    "version": "0.1.4",
+    "isManga": true,
+    "itemType": 0,
+    "isFullData": false,
+    "appMinVerReq": "0.5.0",
+    "additionalParams": "",
+    "sourceCodeLanguage": 1,
+    "notes": "韩漫/日漫/Cosplay 分类；站点有 Cloudflare，扩展走的是能直连的镜像域名 mxgmxg.com，可在源设置里切换。"
+  },
+  {
     "name": "禁漫大王",
     "id": 307340403,
     "baseUrl": "https://jmdw8.com",

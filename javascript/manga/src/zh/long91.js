@@ -198,6 +198,12 @@ class DefaultExtension extends MProvider {
     const style = this.attr(holder, "style");
     const m = /url\(['"]?([^'")]+)/.exec(style);
     if (m) return m[1].startsWith("http") ? m[1] : this.base + m[1];
+    // 封面也可能写在子元素（div[style*=background-image]）上
+    if (holder.selectFirst) {
+      const inner = holder.selectFirst("[style*=background-image]");
+      const m2 = inner ? /url\(['"]?([^'")]+)/.exec(this.attr(inner, "style")) : null;
+      if (m2) return m2[1].startsWith("http") ? m2[1] : this.base + m2[1];
+    }
     if (holder.selectFirst) {
       const srcset = this.attr(holder.selectFirst("source[srcset]"), "srcset");
       if (srcset) {
@@ -227,7 +233,9 @@ class DefaultExtension extends MProvider {
   async getDetail(url) {
     const html = await this.getHtml(this.pathOf(url));
     const doc = new Document(html);
-    const title = this.text(doc.selectFirst(DETAIL_TITLE)) || this.text(doc.selectFirst("title"));
+    const rawTitle = this.text(doc.selectFirst(DETAIL_TITLE));
+    // 有的站把 h1 写成站名，这种情况退回 <title> 的前半段
+    const title = (rawTitle && rawTitle !== this.source.name ? rawTitle : (this.text(doc.selectFirst("title")).split(" - ")[0] || rawTitle));
     if (title === "") throw new Error("解析详情失败，页面结构与预期不符：" + url);
 
     const coverEl = doc.selectFirst(DETAIL_COVER);
