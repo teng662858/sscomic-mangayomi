@@ -1,0 +1,25 @@
+name: add-alicesw-icon
+
+on:
+  push:
+    paths:
+      - '.github/workflows/add-alicesw-icon.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  icon:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: write alicesw icon
+        run: |
+          if [ -f alicesw.png ]; then echo exists; exit 0; fi
+          echo "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" | base64 -d > alicesw.png
+          git config user.name github-actions
+          git config user.email actions@github.com
+          git add alicesw.png
+          git commit -m "Add alicesw icon"
+          git push
